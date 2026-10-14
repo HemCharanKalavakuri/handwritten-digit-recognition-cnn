@@ -1,0 +1,426 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Digit Recognition | CNN</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #101827, #1e293b);
+            color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            padding: 30px;
+            background: #ffffff;
+            color: #172033;
+            border-radius: 22px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .canvas-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        canvas {
+            width: 280px;
+            height: 280px;
+            max-width: 100%;
+            border: 3px solid #cbd5e1;
+            border-radius: 14px;
+            background: #000000;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            padding: 13px 22px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+            transform: none;
+        }
+
+        .predict-button {
+            background: #2563eb;
+            color: white;
+        }
+
+        .clear-button {
+            background: #e2e8f0;
+            color: #172033;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 14px;
+            background: #f1f5f9;
+        }
+
+        .result-label {
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .digit {
+            font-size: 64px;
+            font-weight: bold;
+            color: #2563eb;
+            line-height: 1.2;
+            margin: 8px 0;
+        }
+
+        .confidence {
+            color: #334155;
+            font-weight: bold;
+        }
+
+        .status {
+            min-height: 22px;
+            margin-top: 12px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        .probabilities {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .probability-row {
+            display: grid;
+            grid-template-columns: 24px 1fr 58px;
+            gap: 8px;
+            align-items: center;
+            margin: 9px 0;
+            font-size: 13px;
+        }
+
+        .bar-background {
+            height: 10px;
+            border-radius: 10px;
+            background: #dbe3ef;
+            overflow: hidden;
+        }
+
+        .bar {
+            height: 100%;
+            width: 0%;
+            background: #3b82f6;
+            border-radius: 10px;
+            transition: width 0.3s;
+        }
+
+        .percentage {
+            text-align: right;
+            color: #475569;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        @media (max-width: 420px) {
+            .container {
+                padding: 20px 14px;
+            }
+
+            canvas {
+                width: 250px;
+                height: 250px;
+            }
+
+            button {
+                padding: 12px 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="container">
+        <h1>Handwritten Number Recognition</h1>
+
+        <p class="subtitle">
+            Draw a digit from 0 to 9 below.
+            
+        </p>
+
+        <div class="canvas-wrapper">
+            <canvas
+                id="drawingCanvas"
+                width="280"
+                height="280"
+                aria-label="Draw a handwritten digit here"
+            ></canvas>
+        </div>
+
+        <p style="color: #64748b; font-size: 13px;">
+            Use your mouse or finger to draw in white.
+        </p>
+
+        <div class="buttons">
+            <button
+                class="predict-button"
+                id="predictButton"
+                type="button"
+            >
+                Predict Digit
+            </button>
+
+            <button
+                class="clear-button"
+                id="clearButton"
+                type="button"
+            >
+                Clear
+            </button>
+        </div>
+
+        <section class="result" aria-live="polite">
+            <div class="result-label">Predicted Digit</div>
+
+            <div class="digit" id="predictedDigit">?</div>
+
+            <div class="confidence" id="confidence">
+                Confidence: —
+            </div>
+
+            <div class="status" id="status">
+                Draw a digit to get started.
+            </div>
+        </section>
+
+        <section class="probabilities">
+            <h3>Prediction probabilities</h3>
+            <div id="probabilityList"></div>
+        </section>
+
+        <div class="footer">
+            Powered by TensorFlow, Keras and your trained CNN model.
+        </div>
+    </main>
+
+    <script>
+        const canvas = document.getElementById("drawingCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const predictButton = document.getElementById("predictButton");
+        const clearButton = document.getElementById("clearButton");
+
+        const predictedDigit = document.getElementById("predictedDigit");
+        const confidence = document.getElementById("confidence");
+        const status = document.getElementById("status");
+        const probabilityList = document.getElementById("probabilityList");
+
+        let drawing = false;
+        let hasDrawing = false;
+
+        // Black background and white pen
+        function initializeCanvas() {
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 18;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+        }
+
+        initializeCanvas();
+
+        function getPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+
+            return {
+                x: (event.clientX - rect.left) * canvas.width / rect.width,
+                y: (event.clientY - rect.top) * canvas.height / rect.height
+            };
+        }
+
+        canvas.addEventListener("pointerdown", function(event) {
+            event.preventDefault();
+
+            drawing = true;
+            hasDrawing = true;
+
+            canvas.setPointerCapture(event.pointerId);
+
+            const position = getPosition(event);
+
+            ctx.beginPath();
+            ctx.arc(position.x, position.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.moveTo(position.x, position.y);
+
+            status.textContent = "Drawing ready. Click Predict Digit.";
+        });
+
+        canvas.addEventListener("pointermove", function(event) {
+            if (!drawing) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const position = getPosition(event);
+
+            ctx.lineTo(position.x, position.y);
+            ctx.stroke();
+        });
+
+        function stopDrawing() {
+            drawing = false;
+            ctx.beginPath();
+        }
+
+        canvas.addEventListener("pointerup", stopDrawing);
+        canvas.addEventListener("pointercancel", stopDrawing);
+        canvas.addEventListener("lostpointercapture", stopDrawing);
+
+        clearButton.addEventListener("click", function() {
+            initializeCanvas();
+
+            hasDrawing = false;
+
+            predictedDigit.textContent = "?";
+            confidence.textContent = "Confidence: —";
+            status.textContent = "Canvas cleared. Draw another digit.";
+            probabilityList.innerHTML = "";
+        });
+
+        predictButton.addEventListener("click", async function() {
+            if (!hasDrawing) {
+                status.textContent = "Please draw a digit first.";
+                return;
+            }
+
+            predictButton.disabled = true;
+            status.textContent = "Analyzing your drawing...";
+            predictedDigit.textContent = "...";
+            confidence.textContent = "Confidence: calculating";
+
+            try {
+                const imageData = canvas.toDataURL("image/png");
+
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        image: imageData
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || "Prediction failed.");
+                }
+
+                predictedDigit.textContent = result.prediction;
+                confidence.textContent =
+                    "Confidence: " + result.confidence + "%";
+
+                status.textContent = "Prediction completed successfully.";
+
+                probabilityList.innerHTML = "";
+
+                result.probabilities.forEach(function(probability, digit) {
+                    const row = document.createElement("div");
+                    row.className = "probability-row";
+
+                    const digitLabel = document.createElement("span");
+                    digitLabel.textContent = digit;
+
+                    const barBackground = document.createElement("div");
+                    barBackground.className = "bar-background";
+
+                    const bar = document.createElement("div");
+                    bar.className = "bar";
+                    bar.style.width = probability + "%";
+
+                    if (digit === result.prediction) {
+                        bar.style.background = "#16a34a";
+                    }
+
+                    barBackground.appendChild(bar);
+
+                    const percentage = document.createElement("span");
+                    percentage.className = "percentage";
+                    percentage.textContent = probability + "%";
+
+                    row.appendChild(digitLabel);
+                    row.appendChild(barBackground);
+                    row.appendChild(percentage);
+
+                    probabilityList.appendChild(row);
+                });
+
+            } catch (error) {
+                status.textContent = error.message;
+                predictedDigit.textContent = "?";
+                confidence.textContent = "Confidence: unavailable";
+            } finally {
+                predictButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
