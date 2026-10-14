@@ -94,7 +94,7 @@ Draw a digit on the canvas and click **Predict Digit** to view the result.
 
 ## 🎥 Demo Video
 
-**Video:** [Watch the project demonstration](ADD_YOUR_VIDEO_URL_HERE)
+**Video:** [Watch the project demonstration](https://handwritten-digit-recognition-cnn-ee2j.onrender.com)
 
 Replace the placeholder above with your screen-recorded demo video URL.
 
